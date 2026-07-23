@@ -1,0 +1,9 @@
+# Generated output of generate_digest.py (static-HTML fallback renders)
+summaries/
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store

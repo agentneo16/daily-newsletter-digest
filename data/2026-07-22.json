@@ -1,0 +1,256 @@
+{
+  "_note": "DEMO DATA — every item, number, company and publication in this file is invented so the app can be evaluated without real inbox content.",
+  "date_file": "2026-07-22",
+  "date_display": "Jul 22, 2026",
+  "day": "Wednesday",
+  "main": [
+    {
+      "source": "The Fernmere Signal",
+      "category": "world_macro",
+      "arrival_ist": "5:12 AM",
+      "headline": "Freight rates slide as congestion clears on the main east–west lanes",
+      "one_liner": "Six months of rerouting pressure unwinds; shippers begin locking in cheaper annual contracts.",
+      "bullets": [
+        "Container spot rates <b>down 18%</b> from the spring peak, the steepest eight-week fall in three years.",
+        "Charter availability is back to <b>2024 norms</b>; carriers are quietly idling the oldest third of the reactivated fleet.",
+        "Forwarders expect the relief to reach <b>Q4 landed costs</b> — retailers with import-heavy mixes benefit first.",
+        "Marine insurers have started trimming the risk premiums added during the disruption."
+      ],
+      "so_what": "Cheaper freight feeds straight into goods disinflation — a tailwind for rate-cut expectations and for import-heavy retailers' margins."
+    },
+    {
+      "source": "Quenlow Tech Brief",
+      "category": "ai_tech",
+      "arrival_ist": "6:58 AM",
+      "headline": "Small models, big margins: the quiet shift to task-tuned inference",
+      "one_liner": "Teams are discovering that a well-scoped 8B model beats a frontier call on cost — and often on latency-adjusted quality.",
+      "bullets": [
+        "Survey of 40 (fictional) engineering teams: <b>62%</b> now route the majority of production traffic to small task-tuned models.",
+        "The pattern: frontier model for the hard 10%, distilled specialist for the routine 90%, with an eval harness deciding the split.",
+        "Tooling is catching up — router frameworks that were research toys a year ago now ship with SLAs.",
+        "The losers: mid-size general models, squeezed from both ends of the quality-cost curve."
+      ],
+      "so_what": "Model routing is becoming an architecture decision, not a procurement one — the eval harness, not the model card, is the real moat."
+    },
+    {
+      "source": "Ledger & Line",
+      "category": "markets_investing",
+      "arrival_ist": "7:45 AM",
+      "headline": "Index funds keep swallowing the market — active managers post their worst first half on record",
+      "one_liner": "Passive's share of equity assets grinds higher; the survivors specialize or shrink.",
+      "bullets": [
+        "Net passive equity inflows of <b>$41B</b> in H1 against active outflows of <b>$28B</b> (illustrative figures).",
+        "Fee compression continues: the asset-weighted average active fee fell another <b>4bps</b> year-on-year.",
+        "Where active still wins: small-caps, credit niches, and anything with a genuine capacity constraint."
+      ]
+    },
+    {
+      "source": "Boardmere Bulletin",
+      "category": "india_business",
+      "arrival_ist": "9:20 AM",
+      "headline": "Formal hiring cools even as festive-season inventories build early",
+      "one_liner": "Payroll additions soften for a third month while warehousing demand runs ahead of last year.",
+      "bullets": [
+        "Formal payroll additions slowed to a <b>14-month low</b>; contract logistics hiring is the exception.",
+        "Warehousing take-up in the top eight markets is running <b>~12% ahead</b> of the same period last year (invented figure).",
+        "Read-through: firms expect a strong festive quarter but want flexibility on the wage bill until it shows up."
+      ]
+    },
+    {
+      "source": "Example Finance Weekly",
+      "category": "markets_investing",
+      "arrival_ist": "11:05 AM",
+      "card_type": "hybrid_c",
+      "headline": "The Weekly Ledger: five charts that mattered",
+      "one_liner": "A roundup week — two picks worth your time, three quick hits in the tail.",
+      "top_picks": [
+        {
+          "headline": "The rebalancing bonus is real, but smaller than you think",
+          "tagged_author": "Charts desk",
+          "synthesis": "Backtesting a plain 60/40 across four decades of (simulated) data shows the rebalancing premium clustering around <b>0.3–0.4%</b> a year — meaningful, but dwarfed by the behavioural benefit of simply having a rule.",
+          "link": "https://example.com/weekly-ledger/rebalancing-bonus"
+        },
+        {
+          "headline": "What the yield curve's new shape says about the next cycle",
+          "tagged_author": "Rates desk",
+          "synthesis": "The curve has un-inverted the boring way — front-end relief rather than long-end panic. Historically (in our invented sample) that pattern precedes soft landings twice as often as hard ones.",
+          "link": "https://example.com/weekly-ledger/curve-shape"
+        }
+      ],
+      "tail": [
+        {
+          "headline": "Gold's quiet quarter",
+          "teaser": "Three months of sideways — and why the miners didn't follow.",
+          "addendum": "Producer margins improved anyway as input costs fell.",
+          "link": "https://example.com/weekly-ledger/gold-quiet-quarter"
+        },
+        {
+          "headline": "The ETF wrapper wars reach bond markets",
+          "teaser": "Active bond ETFs are the fastest-growing wrapper this year.",
+          "addendum": "Liquidity in stress remains the open question.",
+          "link": "https://example.com/weekly-ledger/bond-etf-wars"
+        },
+        {
+          "headline": "A reader asks: emergency fund in a liquid fund?",
+          "teaser": "The classic trade-off, revisited with current yields.",
+          "addendum": "Split by access speed: instant tier + T+1 tier.",
+          "link": "https://example.com/weekly-ledger/emergency-fund"
+        }
+      ],
+      "so_what": "A rules-based rebalance and a boring un-inversion both point the same way: process beats prediction this quarter."
+    },
+    {
+      "source": "Anvilbrook Notes",
+      "category": "deals_startups",
+      "arrival_ist": "1:33 PM",
+      "card_type": "flavor_1",
+      "headline": "Anvilbrook Notes: three deals that explain the week",
+      "one_liner": "Vertical AI keeps raising at a premium, infrastructure consolidates, and a quiet aqui-hire says more than both.",
+      "stories": [
+        {
+          "headline": "Meridian Grid Systems raises a $90M Series C for utility-scale battery software",
+          "author": "Deals desk",
+          "synthesis": "The (fictional) company's pitch: storage hardware is commoditizing, dispatch optimization isn't. Investors priced it like a software firm — <b>18x forward revenue</b> — betting the moat is the dispatch data, not the batteries.",
+          "link": "https://example.com/anvilbrook/meridian-grid-c"
+        },
+        {
+          "headline": "Two mid-tier GPU clouds merge to survive the capacity glut",
+          "author": "Infra desk",
+          "synthesis": "Fictional operators Northcastle Compute and Vellum Cloud combine at a valuation <b>40% below</b> their blended last rounds. The read: mid-tier capacity without a differentiated interconnect is a margin trap.",
+          "link": "https://example.com/anvilbrook/gpu-cloud-merger"
+        },
+        {
+          "headline": "Halcyon Motors quietly aqui-hires a 12-person eval-tooling startup",
+          "author": "Deals desk",
+          "synthesis": "The invented automaker's third AI tuck-in this year — all three were tooling teams, not model teams. Incumbents are buying the harness, not the horse.",
+          "link": "https://example.com/anvilbrook/halcyon-aquihire"
+        }
+      ],
+      "so_what": "The premium has moved from models to the scaffolding around them — dispatch data, eval harnesses, orchestration."
+    },
+    {
+      "source": "The Levybrook Ledger",
+      "category": "tax_compliance",
+      "arrival_ist": "3:04 PM",
+      "headline": "Advance-tax season opens with a nudge: reconcile before you remit",
+      "one_liner": "The quarter's compliance letter is mostly housekeeping — but the reconciliation advice is genuinely useful.",
+      "bullets": [
+        "Match your ledger against the pre-filled statement <b>before</b> paying the instalment — mismatches are cheaper to fix now than at filing.",
+        "Capital-gains harvesting done earlier in the year lands in this instalment; don't let it surprise the cash flow.",
+        "Digital-asset reporting fields expand again this year (in our invented jurisdiction) — start tagging transactions now."
+      ]
+    },
+    {
+      "source": "Gridwatt Weekly",
+      "category": "world_macro",
+      "arrival_ist": "4:41 PM",
+      "headline": "Storage is eating the evening peak",
+      "one_liner": "Battery dispatch now covers a double-digit share of the sunset ramp in the most-built-out grids.",
+      "bullets": [
+        "In the most storage-heavy (fictional) grid we track, batteries served <b>14%</b> of the evening ramp last month — triple two years ago.",
+        "Peaker-plant run-hours keep falling; several operators are re-marketing them as reserve capacity only.",
+        "The new constraint is interconnection queues, not cell supply."
+      ],
+      "so_what": "The evening peak was the last argument for new gas peakers in sunny grids — storage is dismantling it faster than the planning cycle assumed."
+    },
+    {
+      "source": "Farrowmere Notes",
+      "category": "markets_investing",
+      "arrival_ist": "6:22 PM",
+      "headline": "The case for boring rebalancing",
+      "one_liner": "A long-form argument that the most underrated edge in personal investing is refusing to have opinions on schedule.",
+      "bullets": [
+        "The essay's core claim: a written rule you follow beats a better rule you abandon — consistency compounds, cleverness mean-reverts.",
+        "Includes a tidy taxonomy of rebalancing triggers: calendar, band, and cash-flow — with band + cash-flow the low-tax combination.",
+        "Best line: <b>\"Your portfolio doesn't need your attention; it needs your absence.\"</b>"
+      ]
+    },
+    {
+      "source": "Quenlow Tech Brief",
+      "category": "ai_tech",
+      "arrival_ist": "8:15 PM",
+      "headline": "Evening wrap: eval season arrives",
+      "one_liner": "Three (fictional) labs shipped public eval suites this week — the benchmark conversation is moving from leaderboards to harnesses.",
+      "bullets": [
+        "The new suites share a theme: <b>task-level pass/fail</b> over aggregate scores, with full trace logging.",
+        "Enterprise buyers are starting to ask for eval artifacts in procurement — a first.",
+        "Skeptics' corner: public evals still overfit within months; the durable asset is the in-house harness."
+      ]
+    },
+    {
+      "source": "Boardmere Bulletin",
+      "category": "india_business",
+      "arrival_ist": "10:47 PM",
+      "headline": "Late wrap: results day movers",
+      "one_liner": "A quiet results evening — two invented mid-caps beat on margins, one guided down on export softness.",
+      "bullets": [
+        "Fictional consumer firm <b>Saros Foods</b> beat on gross margin as input costs eased; volume growth stayed modest.",
+        "Invented exporter <b>Kestrel Textiles</b> guided down a second straight quarter, citing soft demand in its largest market.",
+        "Street read-through: the margin story is intact, the demand story still isn't."
+      ]
+    }
+  ],
+  "curious": [
+    {
+      "source": "The Farhollow Read",
+      "category": "world_macro",
+      "arrival_ist": "7:02 AM",
+      "headline": "What the container century did to small ports",
+      "one_liner": "A 4,000-word essay on the harbors that standardization left behind — and the odd second lives some found.",
+      "bullets": [
+        "The container rewarded scale so brutally that mid-size ports lost even their regional cargo to trucking feeder routes.",
+        "The survivors specialized: project cargo, cruise calls, cold chain, or — the strangest niche — ship recycling.",
+        "Closes with a (fictional) harbor town that turned its idle cranes into the anchor of a maritime museum economy."
+      ],
+      "so_what": "Standardization's losers don't disappear — they specialize or become heritage. A useful lens for what AI does to mid-size firms."
+    },
+    {
+      "source": "Curiomere Desk",
+      "category": "career_learning",
+      "arrival_ist": "12:14 AM",
+      "headline": "Deliberate practice, minus the myth",
+      "one_liner": "The 10,000-hour story you know is mostly wrong; the feedback-loop story underneath it is mostly right.",
+      "bullets": [
+        "What the research actually supports: tight feedback loops, graduated difficulty, and a coach who names the next constraint.",
+        "Hours matter only after the loop exists — unexamined repetition plateaus early.",
+        "Practical takeaway: instrument your practice before you scale it."
+      ]
+    },
+    {
+      "source": "The Farhollow Read",
+      "category": "world_macro",
+      "arrival_ist": "2:29 PM",
+      "headline": "The cartographer's dilemma",
+      "one_liner": "A short essay on why every map is an argument — and what that means for dashboards.",
+      "bullets": [
+        "Every projection choice privileges something; the honest map declares its distortion instead of hiding it.",
+        "The dashboard parallel is direct: a metric layout is a claim about what matters.",
+        "Ends with a checklist for 'declared distortions' in data visualization."
+      ]
+    },
+    {
+      "source": "Extra Time Weekly",
+      "category": "sports_lifestyle",
+      "arrival_ist": "5:47 PM",
+      "headline": "The transfer window's quiet revolution is data ops",
+      "one_liner": "Scouting departments now look like analytics teams — the (fictional) clubs winning the window built pipelines, not spreadsheets.",
+      "bullets": [
+        "The invented club we profile runs <b>event-level data</b> on 40 leagues and models 'transfer surplus' like a portfolio.",
+        "Medical and workload data integration is the new frontier — availability is the most undervalued stat.",
+        "The romance isn't dead: the final call is still a human watching a full match, twice."
+      ]
+    },
+    {
+      "source": "Curiomere Desk",
+      "category": "career_learning",
+      "arrival_ist": "8:40 PM",
+      "headline": "Notes on writing less, better",
+      "one_liner": "An editor's field guide to cutting a third of any draft without losing a single idea.",
+      "bullets": [
+        "The three reliable cuts: throat-clearing openers, restated conclusions, and adjectives doing a number's job.",
+        "A useful drill: rewrite the piece as ten bullet points, then ask which paragraphs earned their prose.",
+        "The standard: every sentence either advances the argument or gets cut."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+{
+  "version": "1.0-demo",
+  "owner": "owner@demo.example",
+  "created": "2026-07-01",
+  "updated": "2026-07-22",
+  "description": "DEMO registry. Every source, sender address and note in this file is invented so the app can be run and evaluated without any real inbox data. The production registry (100+ real sources, personal reading list) is intentionally not published — see README.md.",
+  "schedule": "daily 06:00 IST",
+  "categories": [
+    { "id": "world_macro", "name": "World & Macro", "tag_color": "#ef4444", "priority": 1, "description": "Global affairs, geopolitics, macroeconomics" },
+    { "id": "markets_investing", "name": "Markets & Investing", "tag_color": "#f59e0b", "priority": 2, "description": "Markets, portfolio strategy, funds and asset allocation" },
+    { "id": "india_business", "name": "India & Business", "tag_color": "#fb923c", "priority": 3, "description": "India economy, companies and policy" },
+    { "id": "ai_tech", "name": "AI & Technology", "tag_color": "#38bdf8", "priority": 4, "description": "AI research, tooling and the tech industry" },
+    { "id": "deals_startups", "name": "Deals & Startups", "tag_color": "#4ade80", "priority": 5, "description": "Venture funding, M&A and startup ecosystems" },
+    { "id": "tax_compliance", "name": "Tax & Compliance", "tag_color": "#f472b6", "priority": 6, "description": "Taxation, regulation and personal compliance" },
+    { "id": "career_learning", "name": "Career & Learning", "tag_color": "#a78bfa", "priority": 7, "description": "Careers, skills and learning resources" },
+    { "id": "sports_lifestyle", "name": "Sports & Lifestyle", "tag_color": "#34d399", "priority": 8, "description": "Sport, travel and lifestyle reads" },
+    { "id": "uncategorized", "name": "Uncategorized", "tag_color": "#64748b", "priority": 9, "description": "Awaiting classification" }
+  ],
+  "newsletters": {
+    "tier1_daily": {
+      "description": "Core daily newsletters — arrive 10+ days out of 14.",
+      "sources": [
+        {
+          "name": "The Fernmere Signal",
+          "category": "world_macro",
+          "frequency": "daily",
+          "days_in_14": 14,
+          "include": true,
+          "sender_match": "news@fernmere.example",
+          "subject_patterns": ["Fernmere Signal —"]
+        },
+        {
+          "name": "Ledger & Line",
+          "category": "markets_investing",
+          "frequency": "daily",
+          "days_in_14": 13,
+          "include": true,
+          "sender_match": "briefing@ledgerline.example",
+          "subject_patterns": ["The Ledger:"]
+        },
+        {
+          "name": "Quenlow Tech Brief",
+          "category": "ai_tech",
+          "frequency": "daily",
+          "days_in_14": 12,
+          "include": true,
+          "sender_match": "hello@quenlow.example",
+          "subject_patterns": ["Quenlow —"]
+        }
+      ]
+    },
+    "tier2_near_daily": {
+      "description": "Near-daily — arrive 5–9 days out of 14. Most weekdays.",
+      "sources": [
+        {
+          "name": "Boardmere Bulletin",
+          "category": "india_business",
+          "frequency": "near_daily",
+          "days_in_14": 8,
+          "include": true,
+          "sender_match": "desk@boardmere.example"
+        }
+      ]
+    },
+    "tier3_weekly": {
+      "description": "Weekly or occasional — arrive 1–4 days out of 14.",
+      "sources": [
+        {
+          "name": "Example Finance Weekly",
+          "category": "markets_investing",
+          "frequency": "weekly",
+          "include": true,
+          "sender_match": "editor@examplefinance.example",
+          "note": "Weekly market roundup — rendered as a Hybrid-C card (top picks + also-in-this-email tail)."
+        },
+        {
+          "name": "The Levybrook Ledger",
+          "category": "tax_compliance",
+          "frequency": "weekly",
+          "include": true,
+          "sender_match": "updates@levybrook.example"
+        },
+        {
+          "name": "Gridwatt Weekly",
+          "category": "world_macro",
+          "frequency": "weekly",
+          "include": true,
+          "sender_match": "dispatch@gridwatt.example",
+          "note": "Auto-discovered 2026-07-15 — energy-transition weekly that appeared in the inbox sweep."
+        },
+        {
+          "name": "Anvilbrook Notes",
+          "category": "deals_startups",
+          "frequency": "weekly",
+          "include": true,
+          "sender_match": "letters@anvilbrook.example",
+          "note": "Startup and deals roundup — rendered as a Flavor-1 card (every story summarized in depth)."
+        },
+        {
+          "name": "Example Store Promotions",
+          "category": "uncategorized",
+          "frequency": "occasional",
+          "include": false,
+          "sender_match": "promo@examplestore.example",
+          "note": "Excluded — promotional/transactional, not editorial."
+        }
+      ]
+    },
+    "substack_long_reads": {
+      "description": "Long-form essay newsletters, typically weekly.",
+      "sources": [
+        {
+          "name": "Farrowmere Notes",
+          "category": "markets_investing",
+          "frequency": "weekly",
+          "include": true,
+          "sender_match": "farrowmere@newsletter.example"
+        }
+      ]
+    },
+    "forwarded_secondary": {
+      "description": "Optional secondary mailbox — its newsletters are forwarded into the main mailbox and surfaced in the CURIOUS tab.",
+      "sources": [
+        {
+          "name": "Curiomere Desk",
+          "category": "career_learning",
+          "frequency": "weekly",
+          "include": true,
+          "sender_match": "desk@curiomere.example"
+        },
+        {
+          "name": "The Farhollow Read",
+          "category": "world_macro",
+          "frequency": "weekly",
+          "include": true,
+          "sender_match": "essays@farhollow.example"
+        },
+        {
+          "name": "Extra Time Weekly",
+          "category": "sports_lifestyle",
+          "frequency": "weekly",
+          "include": true,
+          "sender_match": "kickoff@extratimeweekly.example"
+        }
+      ]
+    },
+    "auto_discovered": {
+      "description": "New senders detected in the inbox sweep, pending triage.",
+      "sources": []
+    }
+  },
+  "excluded": {
+    "description": "Sender patterns the ingest pipeline skips entirely (promos, receipts, account notifications).",
+    "senders": [
+      { "sender_match": "receipts@examplestore.example", "reason": "transactional" },
+      { "sender_match": "no-reply@exampleapp.example", "reason": "account notifications" }
+    ]
+  }
+}

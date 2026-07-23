@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>The Daily Digest</title>
+  <meta name="description" content="The Daily Digest — a newspaper-style reading interface for an agentically ingested newsletter inbox. This repo ships the runtime SPA with invented demo data.">
+
+  <!-- ============================================================
+       FONTS — external dependency.
+       Fraunces (display) + Inter (body) + JetBrains Mono load from
+       Google Fonts. Offline use: ship woff2 files with matching
+       @font-face declarations, or accept fallback metric drift.
+       ============================================================ -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Stylesheet — single source of truth for the editorial design language.
+       Stays at v3 in the filename: v4 was a markup-only pass, no CSS changes. -->
+  <link rel="stylesheet" href="app/styles-v3.css">
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React 18.3.1 + Babel standalone, pinned with integrity hashes. -->
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+  <!-- App — load order: data helpers → presentational components → composed view → root. -->
+  <script type="text/babel" src="app/Sources.jsx"></script>
+  <script type="text/babel" src="app/Rail.jsx"></script>
+  <script type="text/babel" src="app/DigestView.jsx"></script>
+  <script type="text/babel" src="app/App.jsx"></script>
+
+  <!-- ============================================================
+       Provenance note.
+       This SPA (index.html + app/) is the runtime pair of a larger
+       design-system workflow (v4.0.1, "The Daily Digest" editorial
+       design language). Filenames track major version only; the
+       stylesheet stayed at v3 because v4 was a markup-only pass.
+       The data/ folder in this repository contains INVENTED demo
+       content — see README.md for what is and isn't included.
+       ============================================================ -->
+</body>
+</html>

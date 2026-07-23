@@ -1,0 +1,157 @@
+{
+  "_note": "DEMO DATA — every item, number, company and publication in this file is invented so the app can be evaluated without real inbox content.",
+  "date_file": "2026-07-21",
+  "date_display": "Jul 21, 2026",
+  "day": "Tuesday",
+  "main": [
+    {
+      "source": "The Fernmere Signal",
+      "category": "world_macro",
+      "arrival_ist": "5:03 AM",
+      "headline": "Central banks stop agreeing: the first split decision season in three years",
+      "one_liner": "Two (fictional) major central banks cut, one holds, one hikes — the synchronized cycle is over.",
+      "bullets": [
+        "The divergence is deliberate: domestic services inflation, not global goods prices, now drives each decision.",
+        "FX desks expect <b>carry trades</b> to return as rate differentials widen for the first time since the tightening cycle.",
+        "The odd one out — the hiker — is fighting a housing rebound, not consumer prices."
+      ],
+      "so_what": "Divergent policy means currency volatility is back as an asset class — hedging costs stop being a rounding error for importers."
+    },
+    {
+      "source": "Ledger & Line",
+      "category": "markets_investing",
+      "arrival_ist": "7:38 AM",
+      "headline": "The dividend comeback nobody priced",
+      "one_liner": "Payout ratios are rising off a decade low — and the market is still valuing growers like hoarders.",
+      "bullets": [
+        "Aggregate payout ratio up <b>3 points</b> from the trough (invented figure); buyback share of returns down for a second year.",
+        "Screen of the week: firms growing dividends off low bases with net cash — 27 names, mostly industrials.",
+        "The behavioural angle: dividend growth is the easiest signal for retail investors to actually hold through drawdowns."
+      ]
+    },
+    {
+      "source": "Quenlow Tech Brief",
+      "category": "ai_tech",
+      "arrival_ist": "6:47 AM",
+      "headline": "Agents meet the org chart",
+      "one_liner": "The (fictional) enterprises getting value from agentic AI all did the same unglamorous thing first: wrote down their processes.",
+      "bullets": [
+        "Pattern across 12 invented case studies: agent projects succeed where the workflow was already documented, fail where it lived in heads.",
+        "The winning deployment shape: <b>narrow agent, wide logging</b>, human approval at the irreversible steps.",
+        "Procurement teams have started asking for audit trails of agent decisions — governance is becoming a feature."
+      ],
+      "so_what": "Agentic AI is a process-documentation forcing function — the transformation cost was always the org, not the model."
+    },
+    {
+      "source": "Boardmere Bulletin",
+      "category": "india_business",
+      "arrival_ist": "9:12 AM",
+      "headline": "GCC hiring shifts from headcount to seniority",
+      "one_liner": "Global capability centers keep growing, but the growth moved up the pyramid.",
+      "bullets": [
+        "Fresh (invented) survey: GCC net additions flat year-on-year, while <b>architect-and-above</b> roles grew 19%.",
+        "The new mandate: product ownership and platform engineering, not seat-count arbitrage.",
+        "Tier-2 city expansion continues for cost reasons — but the senior roles cluster stubbornly in the metros."
+      ]
+    },
+    {
+      "source": "The Levybrook Ledger",
+      "category": "tax_compliance",
+      "arrival_ist": "2:18 PM",
+      "headline": "The paperwork moat: why compliance software keeps compounding",
+      "one_liner": "Every new filing requirement is a tailwind for the vendors — a short structural note.",
+      "bullets": [
+        "Regulatory change count in our (fictional) tracker: up every year for nine years; each change is a forced software upgrade.",
+        "Switching costs compound: five years of filings in one vendor's format is a moat no feature list beats.",
+        "The investor takeaway: boring, mandatory, recurring — the best kind of demand."
+      ]
+    },
+    {
+      "source": "Gridwatt Weekly",
+      "category": "world_macro",
+      "arrival_ist": "4:55 PM",
+      "headline": "Rumor mill: dispatch-software firm Meridian Grid said to be raising big",
+      "one_liner": "Term-sheet chatter puts the (fictional) battery-software firm's round at a software multiple — hardware investors are grumbling.",
+      "bullets": [
+        "Two funds we spoke to (in this invented scenario) passed on valuation; both conceded the dispatch-data moat argument.",
+        "If it closes at the rumored multiple, every storage-adjacent software team's next round just got repriced.",
+        "Watch for the announcement within the week."
+      ]
+    },
+    {
+      "source": "Farrowmere Notes",
+      "category": "markets_investing",
+      "arrival_ist": "6:31 PM",
+      "headline": "On the uselessness of most market commentary",
+      "one_liner": "An essay arguing the daily narrative industry exists to explain variance, not to predict it — and why that's fine.",
+      "bullets": [
+        "The test the essay proposes: would this explanation have been written if the market had moved the other way? Usually yes.",
+        "Commentary's real product is comfort — a story that makes variance bearable enough to stay invested.",
+        "The actionable bit: consume commentary for context, never for timing."
+      ]
+    },
+    {
+      "source": "Quenlow Tech Brief",
+      "category": "ai_tech",
+      "arrival_ist": "11:24 PM",
+      "headline": "Late note: the inference-cost floor keeps falling",
+      "one_liner": "Another quarter, another step down in cost per million tokens — the (invented) trendline says 10x cheaper every 18 months.",
+      "bullets": [
+        "The floor price for commodity-tier inference fell <b>~35%</b> this quarter across the providers we track (invented figures).",
+        "Cheap inference changes product math: features that were demos at last year's prices are margins-positive now.",
+        "The strategic question moves up the stack: if tokens are nearly free, what's scarce? Distribution and data."
+      ]
+    }
+  ],
+  "curious": [
+    {
+      "source": "The Farhollow Read",
+      "category": "world_macro",
+      "arrival_ist": "8:19 AM",
+      "headline": "The last lighthouse keepers",
+      "one_liner": "A meditation on automation's long tail — the jobs that persist decades after the technology that replaced them.",
+      "bullets": [
+        "Automated lights made keepers obsolete on paper in the 1980s; a handful of stations (in this fictional telling) still staff humans for redundancy.",
+        "The pattern generalizes: the last 2% of a job resists automation for longer than the first 98% took.",
+        "Beautifully reported, gently argued — the rare automation essay with no hot take."
+      ],
+      "so_what": "The 'last 2% problem' is the most transferable idea in the piece — it's where the cost curves of automation always flatten."
+    },
+    {
+      "source": "Curiomere Desk",
+      "category": "career_learning",
+      "arrival_ist": "1:07 PM",
+      "headline": "The apprenticeship gap",
+      "one_liner": "Remote work quietly broke the way juniors used to learn — and the fixes so far are scaffolding, not solutions.",
+      "bullets": [
+        "The lost channel: ambient learning — overhearing how seniors handle ambiguity — doesn't survive scheduled video calls.",
+        "Best current fixes in the (invented) firms profiled: recorded decision walkthroughs and deliberate 'watch me work' hours.",
+        "The uncomfortable conclusion: mentorship now has to be designed, because it no longer happens by osmosis."
+      ]
+    },
+    {
+      "source": "Extra Time Weekly",
+      "category": "sports_lifestyle",
+      "arrival_ist": "5:52 PM",
+      "headline": "Marathon training in a heatwave: the science of adapting your block",
+      "one_liner": "Heat is a training stimulus and an injury risk at once — the difference is dosage.",
+      "bullets": [
+        "Heat adaptation shows up in <b>10–14 days</b> of graded exposure; the mistake is chasing pace instead of effort in week one.",
+        "The checklist: effort-based sessions, pre-cooling for quality days, and moving long runs to dawn.",
+        "A good reminder that the watch's pace field is the least useful number in summer."
+      ]
+    },
+    {
+      "source": "The Farhollow Read",
+      "category": "world_macro",
+      "arrival_ist": "9:33 PM",
+      "headline": "Why every city's food district is disappearing into the same five cuisines",
+      "one_liner": "A grumpy, loving essay on culinary homogenization and the economics of rent.",
+      "bullets": [
+        "The argument: high rents select for cuisines with proven delivery economics, compressing variety everywhere the same way.",
+        "The counterforce is suburban strip malls — lower rent keeps the long tail of regional cooking alive.",
+        "Read it for the closing tour of a (fictional) night market that refuses to optimize."
+      ]
+    }
+  ]
+}
