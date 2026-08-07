@@ -34,27 +34,34 @@ python3 generate_digest.py data/2026-07-22.json
 # → summaries/daily-newsletter-summary-2026-07-22.html (self-contained, emailable)
 ```
 
+And the consistency gate from *Learned the hard way* runs on the demo data:
+
+```bash
+python3 validate.py
+# → checks the registry against every edition; exit 0 = all gates pass
+```
+
 ## The system in numbers
 
-Aggregate counts from the live production pipeline (as of Jul 23, 2026). Only these totals are published — the underlying data stays private.
+Aggregate counts from the live production pipeline (as of Aug 7, 2026). Only these totals are published — the underlying data stays private.
 
 | Metric | Value |
 |---|---|
 | In daily production since | late February 2026 |
-| Consecutive daily editions, current 90-day retention window | **90 of 90 — zero missed days** (Apr 24 – Jul 22, 2026) |
-| Newsletters processed in those 90 days | **2,507** (≈28/day; busiest day 40, quietest 16) |
-| Active sources in the live registry | **117**, across 5 cadence tiers |
-| Registry revisions | 38 (v1.0 → v1.38), largely by the pipeline's own registry-maintenance step |
-| Senders excluded as noise | 33 (promos, transactional, low-signal) |
+| Consecutive daily editions on record | **105 of 105 — zero missed days** (Apr 24 – Aug 6, 2026) |
+| Newsletters processed across those editions | **2,900+** (≈28/day) |
+| Active sources in the live registry | **120**, across 5 cadence tiers |
+| Registry revisions | **54** (v1.0 → v1.54), largely by the pipeline's own registry-maintenance step |
+| Senders excluded as noise | **44** (promos, transactional, low-signal) |
 | Content categories | 8 (+ uncategorized), markets/investing and AI/tech lead the mix |
 | Parallel extraction subagents per run | 7–11, batch-partitioned by the coverage gate |
 | Card shapes in the data contract | 3 — single · hybrid-C roundup · flavor-1 digest |
 | Daily outputs | 2 — the SPA's JSON edition + a self-contained fallback HTML |
-| Code in this repo | ≈2,600 lines (Python renderer + 4 JSX components + CSS) |
+| Code in this repo | ≈2,800 lines (Python renderer + consistency gate + 4 JSX components + CSS) |
 
 ### Learned the hard way
 
-Every self-check in this pipeline is the scar of a real production failure. Three failures, three permanent fixes:
+Every self-check in this pipeline is the scar of a real production failure. Four failures, four permanent fixes:
 
 **1 · Mornings that never ran.** In the first weeks, two days produced no digest at all and had to be reconstructed by hand, late.
 
@@ -68,8 +75,12 @@ Every self-check in this pipeline is the scar of a real production failure. Thre
 
 **→ Built in response:** oversized bodies are re-read in bounded slices; hollow text falls back to an alternate extraction path; and every run counts "snippet-only fallbacks" with a target of zero — genuinely thin sources ship as honestly-thin cards that say so.
 
+**4 · A cache that drifted from its source of truth.** For speed, each run classifies senders from a fast in-line copy of the source registry rather than re-reading the whole registry every time. Over months of the pipeline's own auto-maintenance, that copy fell behind the registry it mirrors — and one morning a *mis-categorized* card went out in the edition; the run's registry cross-check flagged it only after assembly. The failure was one of *correctness*, invisible to the uptime record: the edition still shipped on time, it was just subtly wrong.
+
+**→ Built in response:** the in-line copy is now a verified **complete mirror** of the registry, guarded by three things — a **consistency gate** that fails on any category- or section-mismatch between the copy and the registry (it ships in this repo as [`validate.py`](validate.py) — run it against the demo data), a **source-of-truth-wins precedence rule** (on any conflict or unknown, the run re-checks the registry and the registry always wins), and **idempotency guards** so a lagging copy can never trigger duplicate bookkeeping. Each fix was confirmed by independent adversarial review before it shipped.
+
 > [!IMPORTANT]
-> **Automated validation, proven in production.** Weeks after fix #1 shipped, a scheduled run genuinely failed to fire — no alert, no human noticing. The next morning's gate found the hole, **rebuilt the missing day from the inbox, and wrote a log entry about its own repair**; the humans learned of the failure afterwards, by reading that entry. That unwitnessed morning is what the 90-for-90 record above actually measures — not luck, but automated checkpoints doing their job when no one is watching.
+> **Automated validation, proven in production.** Weeks after fix #1 shipped, a scheduled run genuinely failed to fire — no alert, no human noticing. The next morning's gate found the hole, **rebuilt the missing day from the inbox, and wrote a log entry about its own repair**; the humans learned of the failure afterwards, by reading that entry. That unwitnessed morning is what the unbroken record above actually measures — not luck, but automated checkpoints doing their job when no one is watching.
 
 ## Architecture
 
@@ -92,7 +103,7 @@ flowchart LR
 
 The system is two loosely-coupled halves with a JSON contract between them:
 
-**1. Ingest — a scheduled agentic pipeline.** A daily scheduled task (Claude agent with Gmail access via [MCP](https://modelcontextprotocol.io)) runs a 10-step prompt-defined pipeline: search the inbox window, build a manifest of every newsletter that arrived, verify batch coverage against the manifest *before* extraction (a gate that catches silently-dropped emails), fan the batches out to extraction subagents that summarize and categorize each newsletter, then write the day's JSON edition and update the source registry — including auto-discovering new senders and flagging them for triage. The pipeline's prompt, schedules and account specifics are private; this repo documents the shape and ships the renderer.
+**1. Ingest — a scheduled agentic pipeline.** A daily scheduled task (Claude agent with Gmail access via [MCP](https://modelcontextprotocol.io)) runs a 10-step prompt-defined pipeline: search the inbox window, build a manifest of every newsletter that arrived, verify batch coverage against the manifest *before* extraction (a gate that catches silently-dropped emails), fan the batches out to extraction subagents that summarize and categorize each newsletter, then write the day's JSON edition and update the source registry — including auto-discovering new senders and flagging them for triage. The registry is the single **source of truth**; each run carries a fast in-line *cache* of it for classification and, on any conflict, reconciles against the registry (source-of-truth-wins) — with a consistency gate ([`validate.py`](validate.py)) that catches any drift between the two. The pipeline's prompt, schedules and account specifics are private; this repo documents the shape and ships the renderer.
 
 **2. Reading — a zero-build React SPA.** `index.html` + four JSX components (Babel standalone, no bundler) fetch `data/index.json`, the per-day editions, and the registry. Everything is static files — any HTTP server works, there is no backend. Reading state (theme, font, read marks, bookmarks, active tab) persists in `localStorage`.
 
@@ -139,6 +150,7 @@ app/
   App.jsx                     state, routing, data fetching, localStorage persistence
   styles-v3.css               the editorial design language
 generate_digest.py            static-HTML fallback renderer + runtime index writer
+validate.py                   registry↔editions consistency gate (the drift check from "Learned the hard way")
 config/newsletter-registry.json   DEMO registry (13 invented sources)
 data/
   2026-07-21.json             DEMO edition (invented content)
