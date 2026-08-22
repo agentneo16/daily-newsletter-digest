@@ -1,6 +1,6 @@
 # The Daily Digest
 
-**An agentic pipeline that turns a 100+-source newsletter inbox into a categorized daily brief every morning — read in a newspaper-style single-page app.**
+**An agentic pipeline that turns a newsletter inbox of over 100 sources into a categorized daily brief every morning — read in a newspaper-style single-page app.**
 
 Every morning at 06:00 IST, a scheduled agent reads the previous day's newsletters out of Gmail, extracts and summarizes each one, classifies it into one of eight categories, and writes a structured JSON "edition". A React single-page app renders those editions as a daily newspaper: a lead story, time-of-day sections, source tooltips, a coverage grid, bookmarks, and cross-archive search. It has run in daily production since late February 2026 — including one morning when it repaired itself before anyone knew it had failed.
 
@@ -16,29 +16,29 @@ Every morning at 06:00 IST, a scheduled agent reads the previous day's newslette
 
 ## The system in numbers
 
-Aggregate counts from the live production pipeline (as of Aug 7, 2026). Only these totals are published — the underlying data stays private.
+Aggregate counts from the live production pipeline (as of Aug 20, 2026). Only these totals are published — the underlying data stays private.
 
 | Metric | Value |
 |---|---|
 | In daily production since | late February 2026 |
-| Consecutive daily editions on record | **105 of 105 — zero missed days** (Apr 24 – Aug 6, 2026) |
-| Newsletters processed across those editions | **2,900+** (≈28/day) |
-| Active sources in the live registry | **120**, across 5 cadence tiers |
-| Registry revisions | **54** (v1.0 → v1.54), largely by the pipeline's own registry-maintenance step |
+| Consecutive daily editions on record | **119 of 119 — zero missed days** (Apr 24 – Aug 20, 2026) |
+| Newsletters processed across those editions | **over 3,300** (≈28/day) |
+| Active sources in the live registry | **125**, across 5 cadence tiers |
+| Registry revisions | **59** (v1.0 → v1.59), largely by the pipeline's own registry-maintenance step |
 | Senders excluded as noise | **44** (promos, transactional, low-signal) |
-| Content categories | 8 (+ uncategorized), markets/investing and AI/tech lead the mix |
+| Content categories | 8 (including uncategorized); markets/investing and AI/tech lead the mix |
 | Parallel extraction subagents per run | 7–11, batch-partitioned by the coverage gate |
 | Card shapes in the data contract | 3 — single · hybrid-C roundup · flavor-1 digest |
-| Daily outputs | 2 — the SPA's JSON edition + a self-contained fallback HTML |
-| Code in this repo | ≈2,800 lines (Python renderer + consistency gate + 4 JSX components + CSS) |
+| Daily outputs | 2 — the SPA's JSON edition and a self-contained fallback HTML |
+| Code in this repo | ≈2,800 lines (Python renderer, consistency gate, 4 JSX components, and CSS) |
 
 ## Architecture
 
 ```mermaid
 flowchart LR
     subgraph ingest ["Scheduled agentic ingest (daily 06:00 IST)"]
-        A["Gmail inbox<br/>100+ newsletter sources"] -->|"Gmail MCP"| B["Orchestrator agent<br/>search + manifest + coverage gate"]
-        B --> C["Extraction subagents<br/>batch summarize + categorize"]
+        A["Gmail inbox<br/>over 100 newsletter sources"] -->|"Gmail MCP"| B["Orchestrator agent<br/>search, manifest, coverage gate"]
+        B --> C["Extraction subagents<br/>batch summarize and categorize"]
         C --> D["Registry maintenance<br/>auto-discover new senders"]
     end
     C --> E["data/YYYY-MM-DD.json<br/>one structured edition per day"]
@@ -55,7 +55,7 @@ The system is two loosely-coupled halves with a JSON contract between them:
 
 **1. Ingest — a scheduled agentic pipeline.** A daily scheduled task (Claude agent with Gmail access via [MCP](https://modelcontextprotocol.io)) runs a 12-step prompt-defined pipeline (stepped through below): search the inbox window, build a manifest of every newsletter that arrived, verify batch coverage against the manifest *before* extraction (a gate that catches silently-dropped emails), fan the batches out to extraction subagents that summarize and categorize each newsletter, then write the day's JSON edition and update the source registry — including auto-discovering new senders and flagging them for triage. The registry is the single **source of truth**; each run carries a fast in-line *cache* of it for classification and, on any conflict, reconciles against the registry (source-of-truth-wins) — with a consistency gate ([`validate.py`](validate.py)) that catches any drift between the two. The pipeline's prompt, schedules and account specifics are private; this repo documents the shape and ships the renderer.
 
-**2. Reading — a zero-build React SPA.** `index.html` + four JSX components (Babel standalone, no bundler) fetch `data/index.json`, the per-day editions, and the registry. Everything is static files — any HTTP server works, there is no backend. Reading state (theme, font, read marks, bookmarks, active tab) persists in `localStorage`.
+**2. Reading — a zero-build React SPA.** `index.html` and four JSX components (Babel standalone, no bundler) fetch `data/index.json`, the per-day editions, and the registry. Everything is static files — any HTTP server works, there is no backend. Reading state (theme, font, read marks, bookmarks, active tab) persists in `localStorage`.
 
 ## How a daily run works — 12 steps, 8 real checkpoints
 
@@ -63,16 +63,16 @@ The daily agentic run is one continuous execution but has clear phase boundaries
 
 | # | Step | What happens | Executed by |
 |---|---|---|---|
-| 0 | Continuity gate | Verify yesterday shipped (data file + rendered page + logged run); backfill any gap before touching today | Python (no LLM) |
+| 0 | Continuity gate | Verify yesterday shipped (data file, rendered page, logged run); backfill any gap before touching today | Python (no LLM) |
 | 1 | Date computation | Resolve the target UTC window and display date | Python (no LLM) |
 | 2 | Gmail search | Two label-scoped queries → raw thread manifest (~30-50 threads per day) | Mid-tier model, very high reasoning |
 | 3 | Sender reconciliation | Match each thread against the source registry → classify Matched / Excluded / Unknown | Mid-tier model, very high reasoning |
 | 4 | Extraction | Fan out to 7-11 parallel subagents; each fetches its emails' full bodies, parses MIME parts, and produces structured cards (headline, bullets, category, `so_what`). Consolidate multi-brief senders (e.g. Curiomere Desk 3→1) | Mid-tier model, very high reasoning |
 | 5 | Assembly | Assemble cards → `data/YYYY-MM-DD.json` | Python (no LLM) |
 | 6 | Validation | Schema, timestamps, message-ID coverage, no duplicates | Python (no LLM) |
-| 7 | Render | `generate_digest.py` produces the static fallback HTML + refreshes SPA index + sources feed | Python (no LLM) |
+| 7 | Render | `generate_digest.py` produces the static fallback HTML, then refreshes the SPA index and sources feed | Python (no LLM) |
 | 7.5 | Dual-reviewer gate | Two independent reviewers apply a 7-item checklist (coverage, markup, bullet counts, headline style, categories, snippet honesty, consolidation math). Both must approve; any disagreement is fixed and reviewed again | High-tier model × 2 (independent reviewers), high reasoning |
-| 8 | Post-review verify | Re-check schema + counts after any remediation | Python (no LLM) |
+| 8 | Post-review verify | Re-check schema and counts after any remediation | Python (no LLM) |
 | 9 | Registry maintenance | Flag Unknown senders for the next registry sync; refresh registry mirror | Python (no LLM) |
 | 10 | Cleanup | Delete manifest files older than 7 days | Python (no LLM) |
 | 11 | Log append | Session entry with cards shipped, exclusions, decisions, review outcome | Python (no LLM) |
@@ -83,7 +83,7 @@ The daily agentic run is one continuous execution but has clear phase boundaries
 
 - **Step 4 (extraction) is the single largest cost.** For each email, the reasoning model reads the full body, walks the MIME structure, and produces a card with headline, bullets, category, and a `so_what` line where relevant. Multiplied across ~30-40 matched emails per day (fanned out to 7-11 parallel subagents), this is the bulk of the run's model tokens.
 - **Step 7.5 (dual-review) is the second cost center.** Two independent reviewers each apply the same 7-item checklist to the assembled digest. Running two reviewers costs more than one on purpose. It's how errors (an incorrect category, wrong bullet count, or source name left in a headline) get caught before shipping.
-- **Steps 2-3 (search + reconciliation) come third.** Modest but real judgment: classifying an unknown sender, resolving a registry conflict, deciding what belongs in the manifest.
+- **Steps 2-3 (search and reconciliation) come third.** Modest but real judgment: classifying an unknown sender, resolving a registry conflict, deciding what belongs in the manifest.
 - **Coordinator overhead** — the reasoning model's own turns as it orchestrates the pipeline end-to-end. Small but not zero.
 - **Everything else (Steps 0, 1, 5, 6, 7, 8, 9, 10, 11) is Python without an LLM.** Sub-second each; nine of the twelve numbered steps run without a model at all.
 
@@ -162,7 +162,7 @@ Each edition is one JSON file:
 Every item shares `source`, `category`, `headline`, `one_liner`, `arrival_ist` (drives the time-of-day sections) and an optional `so_what` (the "why it matters" line). Beyond that, three card shapes cover the real variety of newsletters, each with its own payload:
 
 - **single** (default) — one newsletter, one story: carries `bullets[]`.
-- **hybrid_c** — roundup newsletters: carries `top_picks[]` (headline · author · synthesis · link) plus an "also in this email" `tail[]` (headline · teaser · addendum · link). No `bullets`.
+- **hybrid_c** — roundup newsletters: carries `top_picks[]` (headline · author · synthesis · link) and an "also in this email" `tail[]` (headline · teaser · addendum · link). No `bullets`.
 - **flavor_1** — digest newsletters where every story deserves depth: carries `stories[]` (headline · author · synthesis · link). No `bullets`.
 
 The registry (`config/newsletter-registry.json`) tiers sources by cadence (tier 1 daily → tier 3 weekly, Substack long-reads, forwarded), records sender-match rules and per-source notes, and marks excluded senders. The SPA's **Sources & Coverage** page joins the registry against the editions to show a 14-day arrival grid per source — which is how a silently-dead subscription gets noticed.
@@ -174,14 +174,14 @@ The reader uses an editorial, newspaper-inspired design language (v4.0.1): Fraun
 ## Repository layout
 
 ```
-index.html                    SPA entry (React 18 + Babel standalone, pinned CDN)
+index.html                    SPA entry (React 18 with Babel standalone, pinned CDN)
 app/
   Sources.jsx                 registry flattening, tier dots, tooltips, coverage page
   Rail.jsx                    left rail: tabs, search, filters, editions, reading list
   DigestView.jsx              masthead, lead story, time-bucketed streams, cards
   App.jsx                     state, routing, data fetching, localStorage persistence
   styles-v3.css               the editorial design language
-generate_digest.py            static-HTML fallback renderer + runtime index writer
+generate_digest.py            static-HTML fallback renderer and runtime index writer
 validate.py                   registry↔editions consistency gate (the drift check from "Learned the hard way")
 config/newsletter-registry.json   DEMO registry (13 invented sources)
 data/
