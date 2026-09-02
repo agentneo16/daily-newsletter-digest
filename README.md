@@ -16,16 +16,16 @@ Every morning at 06:00 IST, a scheduled agent reads the previous day's newslette
 
 ## The system in numbers
 
-Aggregate counts from the live production pipeline (as of Aug 20, 2026). Only these totals are published — the underlying data stays private.
+Aggregate counts from the live production pipeline (as of Sep 1, 2026). Only these totals are published — the underlying data stays private.
 
 | Metric | Value |
 |---|---|
 | In daily production since | late February 2026 |
-| Consecutive daily editions on record | **119 of 119 — zero missed days** (Apr 24 – Aug 20, 2026) |
-| Newsletters processed across those editions | **over 3,300** (≈28/day) |
-| Active sources in the live registry | **125**, across 5 cadence tiers |
-| Registry revisions | **59** (v1.0 → v1.59), largely by the pipeline's own registry-maintenance step |
-| Senders excluded as noise | **44** (promos, transactional, low-signal) |
+| Consecutive daily editions on record | **131 of 131 — zero missed days** (Apr 24 – Sep 1, 2026) |
+| Newsletters processed across those editions | **over 3,600** (≈28/day) |
+| Active sources in the live registry | **127**, across 5 cadence tiers |
+| Registry revisions | **62** (v1.0 → v1.62), largely by the pipeline's own registry-maintenance step |
+| Senders excluded as noise | **45** (promos, transactional, low-signal) |
 | Content categories | 8 (including uncategorized); markets/investing and AI/tech lead the mix |
 | Parallel extraction subagents per run | 7–11, batch-partitioned by the coverage gate |
 | Card shapes in the data contract | 3 — single · hybrid-C roundup · flavor-1 digest |
