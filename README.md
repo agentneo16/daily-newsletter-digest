@@ -4,7 +4,7 @@
 
 Every morning at 06:00 IST, a scheduled agent reads the previous day's newsletters out of Gmail, extracts and summarizes each one, classifies it into one of eight categories, and writes a structured JSON "edition". A React single-page app renders those editions as a daily newspaper: a lead story, time-of-day sections, source tooltips, a coverage grid, bookmarks, and cross-archive search. It has run in daily production since late February 2026 — including one morning when it repaired itself before anyone knew it had failed.
 
-> **Everything in `data/` and `config/` here is invented demo content** — fictional newsletters, fictional companies, fictional numbers — so you can run the app and judge the engineering without anyone's real inbox being published. Any resemblance between a demo source name and a real publication is coincidental. See [What's not in this repo](#whats-not-in-this-repo).
+> **Everything in `data/` and `config/` here is invented demo content** — fictional newsletters, fictional companies, fictional numbers — so the app can be run and the engineering judged without anyone's real inbox being published. Any resemblance between a demo source name and a real publication is coincidental. See [What's not in this repo](#whats-not-in-this-repo).
 
 | Light | Dark |
 |---|---|
@@ -27,10 +27,10 @@ Aggregate counts from the live production pipeline (as of Sep 1, 2026). Only the
 | Registry revisions | **62** (v1.0 → v1.62), largely by the pipeline's own registry-maintenance step |
 | Senders excluded as noise | **45** (promos, transactional, low-signal) |
 | Content categories | 8 (including uncategorized); markets/investing and AI/tech lead the mix |
-| Parallel extraction subagents per run | 7–11, batch-partitioned by the coverage gate |
+| Parallel extraction subagents per run | 7–15 (typically 7–11), batch-partitioned by the coverage gate |
 | Card shapes in the data contract | 3 — single · hybrid-C roundup · flavor-1 digest |
 | Daily outputs | 2 — the SPA's JSON edition and a self-contained fallback HTML |
-| Code in this repo | ≈2,800 lines (Python renderer, consistency gate, 4 JSX components, and CSS) |
+| Code in this repo | ≈4,000 lines (Python renderer, consistency gate, two runtime-evidence tools, 4 JSX components, and CSS) |
 
 ## Architecture
 
@@ -67,9 +67,9 @@ The daily agentic run is one continuous execution but has clear phase boundaries
 | 1 | Date computation | Resolve the target UTC window and display date | Python (no LLM) |
 | 2 | Gmail search | Two label-scoped queries → raw thread manifest (~30-50 threads per day) | Mid-tier model, very high reasoning |
 | 3 | Sender reconciliation | Match each thread against the source registry → classify Matched / Excluded / Unknown | Mid-tier model, very high reasoning |
-| 4 | Extraction | Fan out to 7-11 parallel subagents; each fetches its emails' full bodies, parses MIME parts, and produces structured cards (headline, bullets, category, `so_what`). Consolidate multi-brief senders (e.g. Curiomere Desk 3→1) | Mid-tier model, very high reasoning |
+| 4 | Extraction | Fan out to 7–15 (typically 7–11) parallel subagents; each fetches its emails' full bodies, parses MIME parts, and produces structured cards (headline, bullets, category, `so_what`). Consolidate multi-brief senders (e.g. Curiomere Desk 3→1), every subagent on the executor's own model and reasoning effort — mixed-model fan-out is a gate failure, not a preference | Mid-tier model, very high reasoning |
 | 5 | Assembly | Assemble cards → `data/YYYY-MM-DD.json` | Python (no LLM) |
-| 6 | Validation | Schema, timestamps, message-ID coverage, no duplicates | Python (no LLM) |
+| 6 | Validation | Schema, timestamps, message-ID coverage, no duplicates; **worker-purity gate** — the run's own transcript is read to prove every extraction subagent ran on the executor's model and effort (`tools/worker_purity_check.py`) | Python (no LLM) |
 | 7 | Render | `generate_digest.py` produces the static fallback HTML, then refreshes the SPA index and sources feed | Python (no LLM) |
 | 7.5 | Dual-reviewer gate | Two independent reviewers apply a 7-item checklist (coverage, markup, bullet counts, headline style, categories, snippet honesty, consolidation math). Both must approve; any disagreement is fixed and reviewed again | High-tier model × 2 (independent reviewers), high reasoning |
 | 8 | Post-review verify | Re-check schema and counts after any remediation | Python (no LLM) |
@@ -81,7 +81,7 @@ The daily agentic run is one continuous execution but has clear phase boundaries
 
 **Where the compute goes:**
 
-- **Step 4 (extraction) is the single largest cost.** For each email, the reasoning model reads the full body, walks the MIME structure, and produces a card with headline, bullets, category, and a `so_what` line where relevant. Multiplied across ~30-40 matched emails per day (fanned out to 7-11 parallel subagents), this is the bulk of the run's model tokens.
+- **Step 4 (extraction) is the single largest cost.** For each email, the reasoning model reads the full body, walks the MIME structure, and produces a card with headline, bullets, category, and a `so_what` line where relevant. Multiplied across ~30-40 matched emails per day, fanned out to 7–15 (typically 7–11) parallel subagents, this is the bulk of the run's model tokens.
 - **Step 7.5 (dual-review) is the second cost center.** Two independent reviewers each apply the same 7-item checklist to the assembled digest. Running two reviewers costs more than one on purpose. It's how errors (an incorrect category, wrong bullet count, or source name left in a headline) get caught before shipping.
 - **Steps 2-3 (search and reconciliation) come third.** Modest but real judgment: classifying an unknown sender, resolving a registry conflict, deciding what belongs in the manifest.
 - **Coordinator overhead** — the reasoning model's own turns as it orchestrates the pipeline end-to-end. Small but not zero.
@@ -91,7 +91,7 @@ Mechanical work (dates, schema checks, file writes, cleanup) runs as pure code b
 
 ## Learned the hard way
 
-Every self-check in this pipeline is the scar of a real production failure. Four failures, four permanent fixes:
+Every self-check in this pipeline is the scar of a real production failure. Five failures, five permanent fixes:
 
 **1 · Mornings that never ran.** In the first weeks, two days produced no digest at all and had to be reconstructed by hand, late.
 
@@ -109,6 +109,10 @@ Every self-check in this pipeline is the scar of a real production failure. Four
 
 **→ Built in response:** the in-line copy is now a verified **complete mirror** of the registry, guarded by three things — a **consistency gate** that fails on any category- or section-mismatch between the copy and the registry (it ships in this repo as [`validate.py`](validate.py) — run it against the demo data), a **source-of-truth-wins precedence rule** (on any conflict or unknown, the run re-checks the registry and the registry always wins), and **idempotency guards** so a lagging copy can never trigger duplicate bookkeeping. Each fix was confirmed by independent adversarial review before it shipped.
 
+**5 · A worker on the wrong model.** During a controlled comparison of runtimes, an executor on the strongest model quietly delegated part of the extraction to a smaller sibling model. Nothing in the output said so; the written rule ("subagents run on the executor's model") had simply been ignored.
+
+**→ Built in response:** a hard gate that reads the run's own transcript, not its claims — every extraction subagent's launch record is matched to the executor's model and effort, and the run refuses to render on a mismatch. A companion cost tool bills the run from the same transcript window (executor plus every identifiable launch that produced a billable usage record, one lookup per edition; anything it cannot bill leaves the result marked INCOMPLETE rather than silently short). Both tools are in this repo under `tools/`; on their first production day they verified 29 subagents across two editions with zero mismatches.
+
 > [!IMPORTANT]
 > **Automated validation, proven in production.** Weeks after fix #1 shipped, a scheduled run genuinely failed to fire — no alert, no human noticing. The next morning's gate found the hole, **rebuilt the missing day from the inbox, and wrote a log entry about its own repair**; the humans learned of the failure afterwards, by reading that entry. That unwitnessed morning is what the unbroken record above actually measures — not luck, but automated checkpoints doing their job when no one is watching.
 
@@ -123,7 +127,7 @@ python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
-You'll get two demo editions (Jul 21–22, 2026) over a 13-source demo registry. Try the Main/Curious tabs, star a card, filter by category or time of day, open **Sources & Coverage**, and search across editions.
+This serves two demo editions (Jul 21–22, 2026) over a 13-source demo registry. The Main/Curious tabs, card starring, category and time-of-day filters, **Sources & Coverage**, and cross-edition search are all live in the demo.
 
 The static-HTML fallback renderer also runs standalone:
 
@@ -139,11 +143,11 @@ python3 validate.py
 # → checks the registry against every edition; exit 0 = all gates pass
 ```
 
-## Why 06:00 IST — and what's yours to change
+## Why 06:00 IST — and what is there to change
 
 The time slot is arrival logic, not habit. Each edition summarizes a complete **UTC day**, and UTC midnight falls at **05:30 IST** — so a 06:00 IST run fires minutes after the day it covers has ended everywhere on Earth. That one choice means a single daily run catches the overnight US-evening newsletters *and* has the brief on the breakfast table; the reader's morning/afternoon/evening/late-night sections come straight from each item's `arrival_ist`.
 
-The schedule itself is just "run this agent daily at 06:00" on a scheduled-agent platform — nothing in this code knows or cares about the hour. Adapting the system for yourself means changing three things, none of them code: the schedule slot, the source registry, and the category list. And because the two halves meet only at the JSON contract, the reading side doesn't even require the agentic ingest — any process that writes a valid edition file (even a plain Python script over an mbox export) gets the same newspaper.
+The schedule itself is just "run this agent daily at 06:00" on a scheduled-agent platform — nothing in this code knows or cares about the hour. Adapting the system to another inbox means changing three things, none of them code: the schedule slot, the source registry, and the category list. And because the two halves meet only at the JSON contract, the reading side doesn't even require the agentic ingest — any process that writes a valid edition file (even a plain Python script over an mbox export) gets the same newspaper.
 
 ## The data contract
 
@@ -171,6 +175,39 @@ The registry (`config/newsletter-registry.json`) tiers sources by cadence (tier 
 
 The reader uses an editorial, newspaper-inspired design language (v4.0.1): Fraunces for display type, Inter for body, JetBrains Mono for annotations; a lead story with an "also today" aside; time-of-day sections (morning / afternoon / evening / late night); source chips with tier dots and hover tooltips; light/dark/auto theming. The static fallback (`generate_digest.py`) renders the same JSON as a self-contained dark-theme HTML page — no JavaScript dependencies — as the emailable/archivable artifact.
 
+## Runtime evidence tools
+
+A pipeline that claims a property should prove it. The two tools in `tools/` read the session transcripts the agentic command-line interface (CLI) writes. These are the JSON Lines (JSONL) files of Claude Code and Codex. The tools never trust what the run says about itself.
+
+**Finding the run.** The executor prints a run token, `DIGEST-RUN-YYYY-MM-DD-HHMM`, as its own reply line. After whitespace, backticks and asterisks are stripped, the line must equal the token. The window opens there and closes at the next new token printed the same way in the same session. A token quoted mid-sentence, in a tool call or in a pasted review is ignored, so a later discussion never re-selects the run.
+
+**Proving worker purity.** `worker_purity_check.py` matches every tagged extraction subagent's launch record against the executor's model and effort, then prints one machine-readable last line. `PURITY: PURE` (exit 0) means every worker matched. `PURITY: MIXED` (exit 1) names the offenders. `PURITY: NOTHING-TO-CHECK` (exit 2) means no tagged worker was found. That passes only on an edition known to have run inline with zero subagents; otherwise it blocks the pipeline until the workers finish writing. A lookup or usage error exits 3 with no `PURITY:` line, and the pipeline treats a missing line as a failure.
+
+**Pricing the run.** `session_cost.py` bills the same window: the executor plus every identifiable launch with a usage record. Claude Code subagents are matched by the launch's recorded agent id. Codex children are billed for every task cycle started or re-driven inside the window. Rates are the published list prices per model of each application programming interface (API). Subscription plans bill differently, so the figure is a comparison, not an invoice.
+
+Codex is priced from the per-turn deltas of the rollout's own usage events. Cache writes cost 1.25 times the input rate. Any request over 272K input carries the published long-context surcharge, in the cost only; the token columns keep the actual counts.
+
+**Never quietly short.** Anything the cost tool cannot bill is named in a note and the result is marked `INCOMPLETE`, exit 4. That covers six cases:
+
+- a launch with no recorded id
+- a missing transcript
+- a child with no valid usage record
+- one unbilled task cycle of a child that billed its other cycles
+- a malformed usage record
+- an unknown baseline after a malformed event
+
+Neither tool hardcodes a machine path. `DIGEST_HUB` sets the project root. `CLAUDE_PROJECTS_ROOT` moves the Claude Code transcript root. `DIGEST_CLAUDE_DIRS` (colon-separated) adds transcript folders. `CODEX_SESSIONS_DIR` moves the Codex rollout root.
+
+```
+python3 tools/worker_purity_check.py --marker DIGEST-RUN-YYYY-MM-DD-HHMM     # Claude Code
+python3 tools/worker_purity_check.py --codex-run DIGEST-RUN-YYYY-MM-DD-HHMM  # Codex
+python3 tools/session_cost.py --session <id> --marker <token>
+```
+python3 tools/worker_purity_check.py --marker DIGEST-RUN-YYYY-MM-DD-HHMM     # Claude Code
+python3 tools/worker_purity_check.py --codex-run DIGEST-RUN-YYYY-MM-DD-HHMM  # Codex
+python3 tools/session_cost.py --session <id> --marker <token>
+```
+
 ## Repository layout
 
 ```
@@ -183,6 +220,9 @@ app/
   styles-v3.css               the editorial design language
 generate_digest.py            static-HTML fallback renderer and runtime index writer
 validate.py                   registry↔editions consistency gate (the drift check from "Learned the hard way")
+tools/
+  worker_purity_check.py      hard gate: proves every extraction subagent ran on the executor's model and effort (reads the CLI transcripts)
+  session_cost.py             per-run cost and wall-clock from the same transcripts, one lookup per edition
 config/newsletter-registry.json   DEMO registry (13 invented sources)
 data/
   2026-07-21.json             DEMO edition (invented content)
