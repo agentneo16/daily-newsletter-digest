@@ -88,7 +88,7 @@ or assistant records with `usage: null`) — and the printed totals are therefor
 Session-directory configuration (DIGEST_HUB / CLAUDE_PROJECTS_ROOT / DIGEST_CLAUDE_DIRS / CODEX_SESSIONS_DIR) is derived in
 worker_purity_check.py — see its "Configuration" paragraph; this tool reuses those constants.
 """
-import glob, json, os, sys
+import glob, json, os, re, sys
 from datetime import datetime
 
 # input, cache_read, cache_write, output — $/MTok (API list, 2026-09-04)
@@ -103,9 +103,19 @@ BILLED_CODEX_TURNS = 0     # billed turns the most recent read_codex() call cont
 LAST_BILLED_CODEX_TS = None   # ts of the LAST event the most recent read_codex() actually billed — `token_count` totals are CUMULATIVE and
                               # emitted AFTER the work, so a cycle's tokens are carried by the first billed event at or after its start
 UNBILLED_CODEX_CHILDREN = 0   # Codex child threads selected into the run window that billed nothing (printed as a note; the Codex twin of UNBILLED_LAUNCHES)
+UNPRICED_MODELS = []   # models that billed tokens but carry no PRICES row — the printed $ total EXCLUDES them, so the run is an undercount
 UNBILLED_CODEX_CYCLES = 0   # in-window CYCLES of an otherwise-billing child with an assistant turn and no billed usage event at or after their start
 BILLED_MESSAGES = 0        # distinct assistant messages with a valid `usage` dict the most recent read_claude() call contributed — 0 means the transcript was
                            #   missing, empty or unreadable, or carried only metadata / user records / assistant records with `usage: null`
+# CLAUDE HAS NO LONG-CONTEXT SURCHARGE, and that is a published fact rather than an assumption. The Codex path
+# carries one (LONG_CTX_INPUT below) because OpenAI bills a request over 272K input at 2× input / 1.5× output; the
+# equivalent Claude rule was checked on 2026-09-08 against
+# platform.claude.com/docs/en/about-claude/pricing § "Long context pricing", which states: "Claude 4.6 and later
+# models … include the full 1M token context window at standard pricing. (A 900k-token request is billed at the
+# same per-token rate as a 9k-token request.) Prompt caching and batch processing discounts apply at standard
+# rates across the full context window." So the pinned 1M-context Opus executor is billed by these rows flat, the
+# `[1m]` marker is stripped in `norm`, and there is deliberately no Claude tier here. Every row below was verified
+# against that page's model table the same day.
 PRICES = {  # input, cache_read, cache_write (5-minute = 1.25× input, GPT cache writes likewise), output — $/MTok; 1-hour Claude cache writes = 2× the BASE input price
     "claude-opus-5":       (5.00, 0.50, 6.25, 25.00),
     "claude-opus-4-8":     (5.00, 0.50, 6.25, 25.00),
@@ -118,6 +128,7 @@ PRICES = {  # input, cache_read, cache_write (5-minute = 1.25× input, GPT cache
     "gpt-5.6-sol":         (4.00, 0.40, 5.00, 20.00),
     "gpt-5.6-terra":       (2.00, 0.20, 2.50, 12.00),
     "gpt-5.6-luna":        (0.20, 0.02, 0.25, 1.20),
+    "gpt-6-astra":         (10.00, 1.00, 12.50, 50.00),   # API list 2026-09-04, read 2026-09-07 from the OpenRouter / OpenAI pricing pages; cache-write is 1.25x input, this table's convention
 }
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import worker_purity_check as wpc   # the one home of the token / window / rollout-lookup rules AND of the path derivation
@@ -170,6 +181,7 @@ def codex_run_files(token):
     if others:
         print(f"note: {len(others)} untagged child thread(s) (helpers / reviewers) included in the bill, ignored by the purity gate")
     print("note: the executor is billed only inside its run window (printed token → next new token or end of rollout); each child for every one of its in-window task cycles")
+    print("note: the window closes at the next token or end of rollout — an open session keeps accruing, so wall-clock here is the transcript's span, not the digest's run time")
     return files + others
 
 
@@ -177,14 +189,28 @@ CODEX_WINDOW = None   # path -> the executor's bare (start, end) run window, or 
 CODEX_DIR = wpc.CODEX_DIR
 
 
-def norm(model):
-    if not model:
-        return "unknown"
-    m = model.replace("[1m]", "")
-    for k in PRICES:
-        if m.startswith(k):
-            return k
-    return m
+# A model id may carry one of exactly two decorations that do NOT change what it costs, and they are stripped
+# before the lookup. Nothing else is:
+#   [1m]        the 1M-context variant marker. Same model, same per-token price — Anthropic's pricing page says so
+#               in as many words ("Claude 4.6 and later models include the full 1M token context window at standard
+#               pricing. A 900k-token request is billed at the same per-token rate as a 9k-token request"),
+#               platform.claude.com/docs/en/about-claude/pricing § Long context pricing, read 2026-09-08.
+#   -YYYYMMDD   the dated snapshot suffix (`claude-haiku-4-5-20251001`), which names a build of the same model.
+SUFFIX_DATE_RE = re.compile(r"-\d{8}$")
+
+
+# ONE norm(), in worker_purity_check — see its docstring. This module kept its own copy, which stripped a dated
+# snapshot suffix the purity gate's copy did not; they agreed on everything either had seen, which is what made it
+# a trap rather than a bug (/kun #2, F9). The two rules it applies are unchanged, and the exact-match reason for
+# them is worth keeping here where the price table is:
+#
+#   EXACT MATCH after stripping. The lookup used to be a PREFIX match over an ordered dict — first key wins in
+#   insertion order — so a model whose name merely BEGAN with a priced one was billed at that model's rate:
+#   `claude-opus-5-1-20260401` silently priced as `claude-opus-5`, and `claude-fable-5-1` was right only because
+#   its row happens to sit above `claude-fable-5`. F17 catches a model with no row at all; nothing caught a model
+#   billed at the WRONG row (/kun M3). A new model has to be added deliberately, and until it is, the run says
+#   UNPRICED rather than quoting a number that was never measured.
+norm = wpc.norm
 
 
 def ts(s):
@@ -241,7 +267,7 @@ def read_claude(path, acc, span, window=False):
     return marker_seen
 
 
-def read_codex(path, acc, span, window=None):
+def read_codex(path, acc, span, window=None, run_end=None):
     """Bills a rollout PER TURN. `token_count` carries a CUMULATIVE `total_token_usage`, so each event's bill is its delta
     from the previous total; Codex re-emits an identical total after reasoning items, and an unchanged total is skipped
     (it is not a turn and must not be counted as one). WINDOW is either a single (start, end) — the executor's run window —
@@ -257,7 +283,10 @@ def read_codex(path, acc, span, window=None):
     one home it shares with the purity gate. Model/effort are tracked CONTINUOUSLY through the whole file: records before the
     window set the starting values, records inside it update them, and every delta is billed under the model/effort in force AT
     that delta's own event, so a `turn_context` that switches model or effort inside the window is honoured instead of being
-    back-dated to the previous model. Records AFTER the LAST window end are still ignored entirely.
+    back-dated to the previous model. Records after the last window end are ignored — with one deliberate exception: when RUN_END is given, each cycle's
+    window is joined by a GAP window running from its end to the next cycle's start (or to RUN_END for the last cycle),
+    because a `token_count` is emitted after the turn it pays for and a child's final reading routinely lands past its own
+    task_complete. The gaps are ADDITIVE, never replacements, so an overlapping cycle list cannot be narrowed by them.
     The running baseline PREV is the NORMALISED counters of each event (wpc._usage_ints against the previous baseline), never
     the raw dict: a field missing from one event carries the previous value forward, and that carried value must survive into
     the NEXT delta too — keeping the raw dict would let the omission read as 0 one event later and double-bill the difference.
@@ -278,9 +307,26 @@ def read_codex(path, acc, span, window=None):
     model, eff = None, "?"
     prev = {}
     wins = wpc.cycle_window(window)   # [] = whole rollout; one entry = a run window; several = a child's repeated task cycles
+    # A cycle's `token_count` is emitted AFTER the turn it pays for, so a child's FINAL reading routinely lands after its
+    # own task_complete and was dropped entirely — the bill came out short while still reporting itself complete (GPT-6
+    # Astra full pass, finding 4, repro R4). The reading between a cycle's end and the next drive of that thread (or the
+    # run boundary) belongs to the cycle that just finished, so those gaps are billed. Purely ADDITIVE: each gap is an
+    # extra window beside the cycles, never a replacement, so an overlapping cycle list (the Session 191 shape) cannot be
+    # shrunk and F12/F13/F14 are unaffected.
+    if wins and run_end:
+        gaps = []
+        for i, (a, b) in enumerate(wins):
+            edge = wins[i + 1][0] if i + 1 < len(wins) else run_end
+            if edge > b:
+                gaps.append((b, edge))
+        wins = wins + gaps
     last_end = max((b for _a, b in wins), default=None)
     tots = {}   # (model, effort) in force at the event -> that model's accumulator slots
-    for o in wpc.records(path):   # a file that vanishes mid-scan yields nothing instead of a traceback
+    last_end = wpc.require_bound(last_end, f"{os.path.basename(path)} window end")
+    # `raw > last_end` is a STRING comparison, valid only while every stamp is the fixed-width UTC form. The reader
+    # asserts it now, so this loop and every other Codex walk inherit one guarantee from one place instead of each
+    # remembering to ask (/kun L13; Astra loop 1, finding 4 — the reader is in worker_purity_check, one home).
+    for o in wpc.codex_records(path):   # a file that vanishes mid-scan yields nothing instead of a traceback
         raw = o.get("timestamp") or ""
         p = o.get("payload")
         if last_end and raw > last_end:
@@ -394,6 +440,8 @@ def incomplete_mark():
         causes.append(f"{UNBILLED_CODEX_CHILDREN} unbilled Codex worker thread(s)")
     if UNBILLED_CODEX_CYCLES:
         causes.append(f"{UNBILLED_CODEX_CYCLES} unbilled Codex worker cycle(s)")
+    if UNPRICED_MODELS:
+        causes.append(f"{len(UNPRICED_MODELS)} unpriced model(s): {', '.join(UNPRICED_MODELS)}")
     return f" · INCOMPLETE ({'; '.join(causes)})" if causes else ""
 
 
@@ -402,7 +450,7 @@ def is_codex(path):
     return "/.codex/" in path or os.path.basename(path).startswith("rollout-")
 
 
-def _fixture(input_t, cached, cwrite, output, last=None):
+def _fixture(input_t, cached, cwrite, output, last=None, model="gpt-5.6-sol"):
     """One synthetic gpt-5.6-sol xhigh rollout with a single token_count event carrying the given buckets. LAST overrides the
     event's own `last_token_usage` (the request-level dict the long-context threshold reads); by default it mirrors the totals."""
     import tempfile
@@ -410,9 +458,9 @@ def _fixture(input_t, cached, cwrite, output, last=None):
     usage = {"input_tokens": input_t, "cached_input_tokens": cached, "cache_write_input_tokens": cwrite, "output_tokens": output}
     last_u = dict(usage) if last is None else last
     with tempfile.NamedTemporaryFile("w", suffix=".jsonl", prefix="rollout-selftest-", delete=False) as fh:
-        fh.write(json.dumps({"timestamp": stamp, "type": "turn_context", "payload": {"model": "gpt-5.6-sol", "reasoning_effort": "xhigh"}}) + "\n")
+        fh.write(json.dumps({"timestamp": stamp, "type": "turn_context", "payload": {"model": model, "reasoning_effort": "xhigh"}}) + "\n")
         fh.write(json.dumps({"timestamp": stamp, "type": "event_msg",
-                             "payload": {"type": "token_count", "model": "gpt-5.6-sol", "reasoning_effort": "xhigh",
+                             "payload": {"type": "token_count", "model": model, "reasoning_effort": "xhigh",
                                          "info": {"total_token_usage": dict(usage), "last_token_usage": last_u}}}) + "\n")
         return fh.name
 
@@ -468,10 +516,12 @@ def _run_main_windowed(path, window):
 
 def _run_main(path):
     """main() on one fixture with the run-level counters cleared, returning (exit code, the `runtime:` line)."""
-    global INVALID_EVENTS, LONG_CTX_HITS, UNBILLED_LAUNCHES, RECOVERED_EVENTS, UNRECOVERABLE_EVENTS, UNBILLED_CODEX_CHILDREN, UNBILLED_CODEX_CYCLES
+    global INVALID_EVENTS, LONG_CTX_HITS, UNBILLED_LAUNCHES, RECOVERED_EVENTS, UNRECOVERABLE_EVENTS, UNBILLED_CODEX_CHILDREN, UNBILLED_CODEX_CYCLES, UNPRICED_MODELS, _last_total
     import io, contextlib
     INVALID_EVENTS, LONG_CTX_HITS, UNBILLED_LAUNCHES, RECOVERED_EVENTS, UNRECOVERABLE_EVENTS = 0, 0, 0, 0, 0
     UNBILLED_CODEX_CHILDREN = UNBILLED_CODEX_CYCLES = 0
+    UNPRICED_MODELS = []
+    _last_total = None   # main() returns before the capture on the "no usage records found" path — never inherit the previous run's totals
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         rc = main([path])
@@ -539,15 +589,48 @@ def _cycles_child_fixture(billed_cycles, usage_ts=None, overlap=False):
         return fh.name, cycles
 
 
+def _post_completion_child():
+    """Astra's R4 shape as a real rollout: task_started :01, an in-cycle reading at :03 (cumulative 100/10), another
+    assistant turn at :04, task_complete at :05, then the FINAL reading at :06 carrying cumulative 200/20 — the work of
+    the turn at :04, reported after the cycle closed. The run boundary is :09. Returns (path, cycles, run_end)."""
+    import tempfile
+    st = lambda sec: "2026-09-04T10:00:%02d.000Z" % sec
+    def usage(sec, n):
+        return {"timestamp": st(sec), "type": "event_msg",
+                "payload": {"type": "token_count", "model": "gpt-5.6-sol", "reasoning_effort": "xhigh",
+                            "info": {"total_token_usage": {"input_tokens": n, "cached_input_tokens": 0,
+                                                           "cache_write_input_tokens": 0, "output_tokens": n // 10},
+                                     "last_token_usage": {"input_tokens": 100, "cached_input_tokens": 0,
+                                                          "cache_write_input_tokens": 0, "output_tokens": 10}}}}
+    recs = [{"timestamp": st(0), "type": "turn_context", "payload": {"model": "gpt-5.6-sol", "reasoning_effort": "xhigh"}},
+            {"timestamp": st(1), "type": "event_msg", "payload": {"type": "task_started"}},
+            {"timestamp": st(2), "type": "response_item",
+             "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "first"}]}},
+            usage(3, 100),
+            {"timestamp": st(4), "type": "response_item",
+             "payload": {"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": "second"}]}},
+            {"timestamp": st(5), "type": "event_msg", "payload": {"type": "task_complete"}},
+            usage(6, 200)]
+    with tempfile.NamedTemporaryFile("w", suffix=".jsonl", prefix="rollout-selftest-post-", delete=False) as fh:
+        for r in recs:
+            fh.write(json.dumps(r) + "\n")
+        return fh.name, [(st(1), st(5))], st(9)
+
+
+_last_total = None   # (input, output) the most recent _run_main / _run_main_pair actually billed — F15 asserts on the money, not only the exit code
+
+
 def _run_main_pair(executor, child, mode="--codex", windows=None):
     """main() on an executor + one child with the run-level counters cleared: (exit code, `runtime:` line, notes).
     MODE is the invocation form — "--codex", or None for the BARE-PATH alias the Usage block documents, which must behave
     identically (loop 13). WINDOWS, when given, is the CODEX_WINDOW map installed for the call, so a child can be given
     several in-window task cycles."""
-    global INVALID_EVENTS, LONG_CTX_HITS, UNBILLED_LAUNCHES, RECOVERED_EVENTS, UNRECOVERABLE_EVENTS, UNBILLED_CODEX_CHILDREN, UNBILLED_CODEX_CYCLES
+    global INVALID_EVENTS, LONG_CTX_HITS, UNBILLED_LAUNCHES, RECOVERED_EVENTS, UNRECOVERABLE_EVENTS, UNBILLED_CODEX_CHILDREN, UNBILLED_CODEX_CYCLES, UNPRICED_MODELS, _last_total
     import io as _io, contextlib
     INVALID_EVENTS, LONG_CTX_HITS, UNBILLED_LAUNCHES, RECOVERED_EVENTS, UNRECOVERABLE_EVENTS = 0, 0, 0, 0, 0
     UNBILLED_CODEX_CHILDREN = UNBILLED_CODEX_CYCLES = 0
+    UNPRICED_MODELS = []
+    _last_total = None   # main() returns before the capture on the "no usage records found" path — never inherit the previous run's totals
     global CODEX_WINDOW
     buf = _io.StringIO()
     CODEX_WINDOW = windows
@@ -754,7 +837,76 @@ def selftest():
     print(f"selftest F14 billed event stamped exactly at cycle 2's start: exit={rc14} (expected 0) line={rt14!r} "
           f"(expected no INCOMPLETE — an event AT the start covers the cycle) — {'PASS' if ok14 else 'FAIL'}")
 
-    allok = allok and ok9 and ok10 and ok11 and ok12 and ok13 and ok14
+    # F15 — Astra R4: the child's final reading lands AFTER its task_complete but before the run boundary. It pays for
+    # work the cycle did, so it must be billed; before this it was dropped and the run still reported itself complete.
+    ex15 = _fixture(100, 0, 0, 10)
+    ch15, cyc15, run15 = _post_completion_child()
+    rc15, rt15, notes15 = _run_main_pair(ex15, ch15, windows={ex15: ("2026-09-04T09:59:00.000Z", run15), ch15: cyc15})
+    ok15 = rc15 == 0 and "INCOMPLETE" not in rt15 and " ×3 · " in rt15 and "0.0M" in rt15
+    tot15 = _last_total or {}
+    ok15 = ok15 and tot15.get("input") == 300 and tot15.get("output") == 30
+    print(f"selftest F15 usage reported AFTER task_complete, before the run boundary: exit={rc15} (expected 0) "
+          f"billed input={tot15.get('input')} output={tot15.get('output')} (expected 300 and 30 — executor 100/10 plus the "
+          f"child's 100/10 in-cycle and 100/10 post-completion) line={rt15!r} (expected three billed turns, no INCOMPLETE) "
+          f"— {'PASS' if ok15 else 'FAIL'}")
+
+    # F16 — Astra R3: the per-cycle completeness test must not depend on the invocation form. The F12 child through
+    # `--codex` and through bare paths, with NO token window: cycles come from the thread's own task events.
+    r16 = []
+    for form in ("--codex", None):
+        exA = _fixture(100, 20, 30, 7); chA, _c = _cycles_child_fixture({1})
+        rcA, rtA, nsA = _run_main_pair(exA, chA, mode=form)
+        exB = _fixture(100, 20, 30, 7); chB, _c2 = _cycles_child_fixture({1, 2})
+        rcB, rtB, nsB = _run_main_pair(exB, chB, mode=form)
+        named = any("cycle 2" in x for x in nsA)
+        r16.append((rcA == EXIT_PARTIAL and named and rtA.endswith(" · INCOMPLETE (1 unbilled Codex worker cycle(s))"),
+                    rcB == 0 and "INCOMPLETE" not in rtB, form or "bare paths", rcA, rcB, named))
+    ok16 = all(a and b for a, b, *_ in r16)
+    for a, b, form, rcA, rcB, named in r16:
+        print(f"selftest F16 per-cycle check without a token window, via {form}: unbilled-cycle child exit={rcA} "
+              f"(expected {EXIT_PARTIAL}) named cycle 2={named} (expected True) | fully billed child exit={rcB} (expected 0) "
+              f"— {'PASS' if a and b else 'FAIL'}")
+
+    # F17 — Astra R5: a model with no PRICES row prices as n/a and the total is short by all of its tokens, so the run
+    # is INCOMPLETE. The ⚠ UNPRICED flag already said so in words; the exit code said the opposite.
+    ex17 = _fixture(100, 0, 0, 10, model="gpt-review-unpriced")
+    rc17, rt17 = _run_main(ex17)
+    ok17 = rc17 == EXIT_PARTIAL and "⚠ UNPRICED: gpt-review-unpriced" in rt17 and "INCOMPLETE (1 unpriced model(s): gpt-review-unpriced)" in rt17
+    print(f"selftest F17 model absent from PRICES: exit={rc17} (expected {EXIT_PARTIAL}) line={rt17!r} (expected both the "
+          f"'⚠ UNPRICED: gpt-review-unpriced' flag and 'INCOMPLETE (1 unpriced model(s): …)') — {'PASS' if ok17 else 'FAIL'}")
+
+    # F18 — the gpt-6-astra row added with F17: today's reviewer sessions price instead of reading n/a.
+    ex18 = _fixture(100_000, 0, 0, 100_000, model="gpt-6-astra")   # under LONG_CTX_INPUT, so the surcharge is not in play
+    rc18, rt18 = _run_main(ex18)
+    ok18 = rc18 == 0 and "UNPRICED" not in rt18 and "$6.00" in rt18   # 0.1 MTok in @ $10.00 + 0.1 MTok out @ $50.00
+    print(f"selftest F18 gpt-6-astra prices from the new PRICES row: exit={rc18} (expected 0) line={rt18!r} "
+          f"(expected $6.00 — 0.1 MTok input at $10.00 plus 0.1 MTok output at $50.00, below the long-context threshold — "
+          f"and no UNPRICED) — {'PASS' if ok18 else 'FAIL'}")
+
+    # F19 — /kun M3: a model whose id merely BEGINS with a priced one is a DIFFERENT model and must not borrow its
+    # row. The prefix match this replaced would have billed `claude-opus-5-1-…` at Opus 5's rate for ever, silently.
+    ex19 = _fixture(100_000, 0, 0, 100_000, model="claude-opus-5-1-20260401")
+    rc19, rt19 = _run_main(ex19)
+    ok19 = rc19 == EXIT_PARTIAL and ("UNPRICED" in rt19 or "n/a" in rt19)
+    print(f"selftest F19 a model that only starts with a priced key is UNPRICED: exit={rc19} "
+          f"(expected {EXIT_PARTIAL}) line={rt19!r} (expected n/a — `claude-opus-5-1-20260401` is not "
+          f"`claude-opus-5`, and a rate nobody chose is worse than no rate) — {'PASS' if ok19 else 'FAIL'}")
+
+    # F20 — the two decorations that genuinely do not change the price: the 1M-context marker and a dated snapshot.
+    ex20 = _fixture(100_000, 0, 0, 100_000, model="claude-opus-5[1m]")
+    rc20, rt20 = _run_main(ex20)
+    ok20 = rc20 == 0 and "UNPRICED" not in rt20 and "$3.00" in rt20   # 0.1 MTok in @ $5 + 0.1 MTok out @ $25
+    print(f"selftest F20 `[1m]` prices as the base model: exit={rc20} (expected 0) line={rt20!r} "
+          f"(expected $3.00 — 0.1 MTok input at $5.00 plus 0.1 MTok output at $25.00; the 1M context window is "
+          f"standard-priced, so there is no Claude long-context tier) — {'PASS' if ok20 else 'FAIL'}")
+    ex20b = _fixture(100_000, 0, 0, 100_000, model="claude-haiku-4-5-20251001")
+    rc20b, rt20b = _run_main(ex20b)
+    ok20b = rc20b == 0 and "UNPRICED" not in rt20b
+    print(f"selftest F20b a dated snapshot id prices as its base model: exit={rc20b} (expected 0) line={rt20b!r} "
+          f"— {'PASS' if ok20b else 'FAIL'}")
+
+    allok = (allok and ok9 and ok10 and ok11 and ok12 and ok13 and ok15 and ok16 and ok17 and ok18 and ok14
+             and ok19 and ok20 and ok20b)
     print("selftest: PASS" if allok else "selftest: FAIL")
     return 0 if allok else 1
 
@@ -769,7 +921,7 @@ def main(argv):
         if len(argv) > 1:
             print(f"{argv[0]} takes no other arguments; got {argv[1:]}"); return 3
         print(__doc__); return 0
-    global MARKER, UNBILLED_LAUNCHES, UNBILLED_CODEX_CHILDREN, UNBILLED_CODEX_CYCLES
+    global MARKER, UNBILLED_LAUNCHES, UNBILLED_CODEX_CHILDREN, UNBILLED_CODEX_CYCLES, UNPRICED_MODELS, _last_total
     if argv.count("--marker") > 1:
         print("--marker given twice"); return 3
     if argv[0] in ("--codex", "--codex-run", "--latest-codex") and "--marker" in argv:
@@ -814,6 +966,10 @@ def main(argv):
     # executor + unbilled child exited 4 through `--codex` and 0 with no INCOMPLETE through its documented equivalent
     # (GPT-6 Astra, GitHub review loop 13). `--latest-codex` is deliberately NOT an alias: it has no ownership filter, so
     # its extra files are unrelated rollouts, not this executor's children.
+    # The run boundary all children share: the executor's own window end. Only --codex-run installs one; on the other
+    # forms a child is billed to the end of its rollout, which is already its boundary.
+    _exec_win = (CODEX_WINDOW or {}).get(files[0]) if files else None
+    run_end = _exec_win[1] if isinstance(_exec_win, tuple) and len(_exec_win) == 2 and isinstance(_exec_win[0], str) else None
     codex_alias = not mode.startswith("--") and bool(files) and is_codex(files[0])
     codex_children = files[1:] if (mode in ("--codex-run", "--codex") or codex_alias) else []
     unbilled_children, unbilled_cycles = [], []
@@ -822,7 +978,7 @@ def main(argv):
             w = CODEX_WINDOW.get(f) if CODEX_WINDOW else None
             if CODEX_WINDOW and not w:   # a child with no window would silently be billed whole-rollout
                 print(f"WARNING: {os.path.basename(f)} has no run window — billed whole-rollout")
-            read_codex(f, acc, span, w)
+            read_codex(f, acc, span, w, run_end=run_end)
             if f in codex_children and not BILLED_CODEX_TURNS:
                 # A child selected into the run window that billed NOTHING is as unbilled as a Claude launch with no
                 # usage record: the thread was identified, no usage came back, and the totals are short by its whole
@@ -840,7 +996,12 @@ def main(argv):
                 # — work that reached the model and returned is billable, an empty cycle (spawned, nothing said) is not
                 # a shortfall. The assistant predicate is wpc's kitchen, and it is asked ONLY about cycles that already
                 # failed the timestamp test, so a fully billed run walks no extra file.
-                for i, (cs, ce) in enumerate(wpc.cycle_window(w)):
+                # `--codex` and bare paths supply no token window, so cycle_window(w) is empty and the per-cycle test
+                # silently did nothing there while L48-49 promised the same behaviour on every form (Astra finding 5,
+                # repro R3). With no window, the thread's own task events are the cycle list; billing stays whole-rollout.
+                # This branch is reached for CHILDREN only (`f in codex_children`, i.e. files[1:]); an executor rollout has
+                # task events of its own, and they are not worker cycles.
+                for i, (cs, ce) in enumerate(wpc.cycle_window(w) or wpc.codex_cycles_all(f)):
                     if LAST_BILLED_CODEX_TS is not None and LAST_BILLED_CODEX_TS < cs and wpc.codex_has_assistant_turn(f, cs, ce):   # strictly before: an event AT the start covers the cycle ("at or after its start", loop 14)
                         unbilled_cycles.append(f"{os.path.basename(f)[8:27] or os.path.basename(f)} cycle {i + 1}")
         else:
@@ -907,13 +1068,22 @@ def main(argv):
         if c is None: unpriced.append(k)
         print(f"{k:<20}{eff:<8}{n:>6}{i:>12,}{cr:>12,}{cw:>12,}{w1:>12,}{o:>10,}{(f'{c:9.2f}' if c is not None else '      n/a')}")
         parts.append(f"{k} {eff} ×{n}")
-    mins = (span[1] - span[0]).total_seconds() / 60 if span[0] and span[1] else 0
+    # the minutes between the bounds AS PRINTED (%H:%M, seconds cut), so the number is always their difference — the exact
+    # span printed "179 min (05:13→08:13 UTC)" (v6.27b, Gemini's CONTROL 6 finding 1); the runtime line reads the same mins
+    mins = (span[1].replace(second=0, microsecond=0) - span[0].replace(second=0, microsecond=0)).total_seconds() / 60 if span[0] and span[1] else 0
     print(f"{'TOTAL':<34}{'':>12}{'':>12}{'':>12}{'':>12}{vol:>10,}{total:9.2f}")
-    print(f"wall-clock: {mins:.0f} min ({span[0].strftime('%H:%M') if span[0] else '?'}→{span[1].strftime('%H:%M') if span[1] else '?'} UTC)")
+    fmt = "%Y-%m-%d %H:%M" if span[0] and span[1] and span[0].date() != span[1].date() else "%H:%M"   # a span that crosses a day carries the date, or 6381 min reads beside 04:20→14:41 (v6.27c, Astra's CONTROL 7 LOW)
+    print(f"wall-clock: {mins:.0f} min ({span[0].strftime(fmt) if span[0] else '?'}→{span[1].strftime(fmt) if span[1] else '?'} UTC)")
+    global _last_total   # what was actually BILLED, for the selftest to assert on — F15 is a money question, not an exit-code question
+    _last_total = {"input": sum(a[0] + a[1] + a[2] + a[5] for a in acc.values()), "output": sum(a[3] for a in acc.values())}
+    UNPRICED_MODELS = list(unpriced)   # read by incomplete_mark() and by the exit code — the ⚠ flag alone still exited 0 (Astra finding 6, repro R5)
     flag = f" · ⚠ UNPRICED: {', '.join(unpriced)} (total is incomplete — add to PRICES)" if unpriced else ""
     print(f"runtime: {' · '.join(parts)} · {vol/1e6:.1f}M tokens · ${total:.2f} at API list · {mins:.0f} min{flag}{incomplete_mark()}")
-    return EXIT_PARTIAL if (INVALID_EVENTS or RECOVERED_EVENTS or UNRECOVERABLE_EVENTS or UNBILLED_LAUNCHES
-                            or UNBILLED_CODEX_CHILDREN or UNBILLED_CODEX_CYCLES) else 0
+    # `incomplete_mark()` already enumerates every INCOMPLETE cause, and re-listing all seven here was a second copy
+    # that had to be edited in step with it — the eighth cause would have been added in one place and silently missing
+    # from the other. The mark is non-empty exactly when a cause fired, so it IS the condition (code-review run 1,
+    # finding 16 — behaviour-preserving; selftest F1-F18 unchanged).
+    return EXIT_PARTIAL if incomplete_mark() else 0
 
 
 if __name__ == "__main__":
